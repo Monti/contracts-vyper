@@ -26,6 +26,12 @@ balances: uint256[address]                        # UNI balance of an address
 allowances: (uint256[address])[address]           # UNI allowance of one address on another
 token: address(ERC20)                             # address of the ERC20 token traded on this contract
 factory: Factory                                  # interface for the factory that created this contract
+last_invariant: decimal                           #
+owner: address                                    #
+platform_fee: decimal                             #
+platform_fee_max: decimal                         #
+swap_fee: decimal                                 #
+swap_fee_max: decimal                             #
 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
@@ -56,7 +62,7 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         token_amount: uint256 = msg.value * token_reserve / eth_reserve + 1
         liquidity_minted: uint256 = msg.value * total_liquidity / eth_reserve
         assert max_tokens >= token_amount and liquidity_minted >= min_liquidity
-        self.balances[msg.sender] += liquidity_minted
+        self.balances[msg.sender] += liquidity_minted - self.platform_fee
         self.totalSupply = total_liquidity + liquidity_minted
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
@@ -68,7 +74,7 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         token_amount: uint256 = max_tokens
         initial_liquidity: uint256 = as_unitless_number(self.balance)
         self.totalSupply = initial_liquidity
-        self.balances[msg.sender] = initial_liquidity
+        self.balances[msg.sender] = initial_liquidity - self.platform_fee
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, initial_liquidity)
@@ -86,7 +92,7 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
     total_liquidity: uint256 = self.totalSupply
     assert total_liquidity > 0
     token_reserve: uint256 = self.token.balanceOf(self)
-    eth_amount: uint256(wei) = amount * self.balance / total_liquidity
+    eth_amount: uint256(wei) = (amount * self.balance / total_liquidity) - self.platform_fee
     token_amount: uint256 = amount * token_reserve / total_liquidity
     assert eth_amount >= min_eth and token_amount >= min_tokens
     self.balances[msg.sender] -= amount
@@ -495,3 +501,19 @@ def approve(_spender : address, _value : uint256) -> bool:
 @constant
 def allowance(_owner : address, _spender : address) -> uint256:
     return self.allowances[_owner][_spender]
+
+def adjust_swap_fee(_new_swap_fee : decimal)
+      assert _new_swap_fee < self.swap_fee_max
+      self.swap_fee = _new_swap_fee
+
+def adjust_platform_fee(_new_platform_fee : decimal)
+      assert _new_platform_fee < self.platform_fee_max
+      self.platform_fee = _new_platform_fee
+
+def adjust_swap_fee_max(_new_swap_fee_max : decimal)
+      assert _new_swap_fee_max < self.swap_fee_max
+      self.swap_fee_max = _new_swap_fee_max
+
+def adjust_platform_fee(_new_platform_fee_max : decimal)
+      assert _new_platform_fee_max < self.platform_fee_max
+      self.platform_fee_max = _new_platform_fee_max
