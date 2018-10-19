@@ -2,6 +2,7 @@
 # @author Hayden Adams (@haydenadams)
 # @notice Source code found at https://github.com/uniswap
 # @notice Use at your own risk
+# @notice Use at your own risk
 
 contract Factory():
     def getExchange(token_addr: address) -> address: constant
