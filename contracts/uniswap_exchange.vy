@@ -43,6 +43,10 @@ def setup(token_addr: address):
     self.name = 0x556e697377617020563100000000000000000000000000000000000000000000
     self.symbol = 0x554e492d56310000000000000000000000000000000000000000000000000000
     self.decimals = 18
+    self.platform_fee = 1
+    self.platform_fee_max = 100
+    swap_fee = 1
+    swap_fee_max = 100
 
 # @notice Deposit ETH and Tokens (self.token) at current ratio to mint UNI tokens.
 # @dev min_amount has a djfferent meaning when total UNI supply is 0.
@@ -505,18 +509,22 @@ def approve(_spender : address, _value : uint256) -> bool:
 def allowance(_owner : address, _spender : address) -> uint256:
     return self.allowances[_owner][_spender]
 
+@public
 def adjust_swap_fee(_new_swap_fee : decimal)
       assert _new_swap_fee < self.swap_fee_max
       self.swap_fee = _new_swap_fee
 
+@public
 def adjust_platform_fee(_new_platform_fee : decimal)
       assert _new_platform_fee < self.platform_fee_max
       self.platform_fee = _new_platform_fee
 
+@public
 def adjust_swap_fee_max(_new_swap_fee_max : decimal)
       assert _new_swap_fee_max < self.swap_fee_max
       self.swap_fee_max = _new_swap_fee_max
 
+@public
 def adjust_platform_fee(_new_platform_fee_max : decimal)
       assert _new_platform_fee_max < self.platform_fee_max
       self.platform_fee_max = _new_platform_fee_max
