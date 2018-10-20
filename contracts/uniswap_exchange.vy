@@ -28,10 +28,10 @@ token: address(ERC20)                             # address of the ERC20 token t
 factory: Factory                                  # interface for the factory that created this contract
 last_invariant: decimal                           #
 owner: address                                    #
-platform_fee: decimal                             #
-platform_fee_max: decimal                         #
-swap_fee: decimal                                 #
-swap_fee_max: decimal                             #
+platform_fee: uint256                             #
+platform_fee_max: uint256                         #
+swap_fee: uint256                                 #
+swap_fee_max: uint256                             #
 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
@@ -65,7 +65,8 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         token_reserve: uint256 = self.token.balanceOf(self)
         token_amount: uint256 = msg.value * token_reserve / eth_reserve + 1
         liquidity_minted: uint256 = msg.value * total_liquidity / eth_reserve
-        assert max_tokens >= token_amount and liquidity_minted >= min_liquidity and liquidity_minted >= self.platform_fee
+        assert max_tokens >= token_amount and liquidity_minted >= min_liquidity
+        assert liquidity_minted >= self.platform_fee
         self.balances[msg.sender] += liquidity_minted - self.platform_fee
         self.balances[self] += self.platform_fee
         self.totalSupply = total_liquidity + liquidity_minted
@@ -510,21 +511,25 @@ def allowance(_owner : address, _spender : address) -> uint256:
     return self.allowances[_owner][_spender]
 
 @public
-def adjust_swap_fee(_new_swap_fee : decimal)
+def adjust_swap_fee(_new_swap_fee : uint256) -> bool:
       assert _new_swap_fee < self.swap_fee_max
       self.swap_fee = _new_swap_fee
+      return True
 
 @public
-def adjust_platform_fee(_new_platform_fee : decimal)
+def adjust_platform_fee(_new_platform_fee : uint256) -> bool:
       assert _new_platform_fee < self.platform_fee_max
       self.platform_fee = _new_platform_fee
+      return True
 
 @public
-def adjust_swap_fee_max(_new_swap_fee_max : decimal)
+def adjust_swap_fee_max(_new_swap_fee_max : uint256) -> bool:
       assert _new_swap_fee_max < self.swap_fee_max
       self.swap_fee_max = _new_swap_fee_max
+      return True
 
 @public
-def adjust_platform_fee(_new_platform_fee_max : decimal)
+def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
       assert _new_platform_fee_max < self.platform_fee_max
       self.platform_fee_max = _new_platform_fee_max
+      return True
