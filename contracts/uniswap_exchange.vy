@@ -45,8 +45,8 @@ def setup(token_addr: address):
     self.decimals = 18
     self.platform_fee = 1
     self.platform_fee_max = 100
-    swap_fee = 1
-    swap_fee_max = 100
+    self.swap_fee = 1
+    self.swap_fee_max = 100
 
 # @notice Deposit ETH and Tokens (self.token) at current ratio to mint UNI tokens.
 # @dev min_amount has a djfferent meaning when total UNI supply is 0.
