@@ -28,9 +28,9 @@ token: address(ERC20)                             # address of the ERC20 token t
 factory: Factory                                  # interface for the factory that created this contract
 last_invariant: decimal                           #
 owner: address                                    #
-platform_fee: uint256                             #
+platform_fee: uint256                             # must be between 1 to 1000
 platform_fee_max: uint256                         #
-swap_fee: uint256                                 #
+swap_fee: uint256                                 # must be between 1 to 1000
 swap_fee_max: uint256                             #
 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
@@ -68,8 +68,10 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         liquidity_minted: uint256 = msg.value * total_liquidity / eth_reserve
         assert max_tokens >= token_amount and liquidity_minted >= min_liquidity
         assert liquidity_minted >= self.platform_fee
-        self.balances[msg.sender] += liquidity_minted - self.platform_fee
-        self.balances[self] += self.platform_fee
+        liquidity_minted_with_fee : uint256 = liquidity_minted * self.platform_fee / 1000
+        platform_fee_per_liquidity : uint256 = liquidity_minted - liquidity_minted_with_fee
+        self.balances[msg.sender] += liquidity_minted_with_fee
+        self.balances[self.owner] += platform_fee_per_liquidity
         self.totalSupply = total_liquidity + liquidity_minted
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
@@ -82,8 +84,10 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         initial_liquidity: uint256 = as_unitless_number(self.balance)
         self.totalSupply = initial_liquidity
         assert initial_liquidity >= self.platform_fee
-        self.balances[msg.sender] = initial_liquidity - self.platform_fee
-        self.balances[self] += self.platform_fee
+        liquidity_minted_with_fee : uint256 = initial_liquidity * self.platform_fee / 1000
+        platform_fee_per_liquidity : uint256 = initial_liquidity - liquidity_minted_with_fee
+        self.balances[msg.sender] = liquidity_minted_with_fee
+        self.balances[self.owner] += platform_fee_per_liquidity
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, initial_liquidity)
@@ -121,7 +125,7 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
 @constant
 def getInputPrice(input_amount: uint256, input_reserve: uint256, output_reserve: uint256) -> uint256:
     assert input_reserve > 0 and output_reserve > 0
-    input_amount_with_fee: uint256 = input_amount * 997
+    input_amount_with_fee: uint256 = input_amount * self.swap_fee
     numerator: uint256 = input_amount_with_fee * output_reserve
     denominator: uint256 = (input_reserve * 1000) + input_amount_with_fee
     return numerator / denominator
@@ -135,8 +139,8 @@ def getInputPrice(input_amount: uint256, input_reserve: uint256, output_reserve:
 @constant
 def getOutputPrice(output_amount: uint256, input_reserve: uint256, output_reserve: uint256) -> uint256:
     assert input_reserve > 0 and output_reserve > 0
-    numerator: uint256 = input_reserve * output_amount * 1000
-    denominator: uint256 = (output_reserve - output_amount) * 997
+    numerator: uint256 = input_reserve * output_amount * self.swap_fee
+    denominator: uint256 = (output_reserve - output_amount) * 1000
     return numerator / denominator + 1
 
 @private
