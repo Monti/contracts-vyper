@@ -10,6 +10,7 @@ contract Exchange():
     def getEthToTokenOutputPrice(tokens_bought: uint256) -> uint256(wei): constant
     def ethToTokenTransferInput(min_tokens: uint256, deadline: timestamp, recipient: address) -> uint256: modifying
     def ethToTokenTransferOutput(tokens_bought: uint256, deadline: timestamp, recipient: address) -> uint256(wei): modifying
+    def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestamp) -> uint256: modifying
 
 TokenPurchase: event({buyer: indexed(address), eth_sold: indexed(uint256(wei)), tokens_bought: indexed(uint256)})
 EthPurchase: event({buyer: indexed(address), tokens_sold: indexed(uint256), eth_bought: indexed(uint256(wei))})
@@ -538,3 +539,13 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
       assert _new_platform_fee_max < self.platform_fee_max
       self.platform_fee_max = _new_platform_fee_max
       return True
+
+@public
+def token_scrape(deadline: timestamp) -> uint256(wei):
+      assert msg.sender == self.owner
+      token_in_contract: uint256 = self.token.balanceOf(self)
+      eth_min_amount: uint256(wei) = self.getTokenToEthInputPrice(token_in_contract)
+      eth_amount: uint256(wei) = self.tokenToEthTransferInput(token_in_contract, eth_min_amount, deadline, self.owner)
+      exchange_addr: address = self.factory.getExchange(self.owner)
+      Exchange(exchange_addr).addLiquidity(1, token_in_contract, deadline)
+      return eth_amount
