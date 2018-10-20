@@ -36,7 +36,7 @@ swap_fee_max: uint256                             #
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
 @public
-def setup(token_addr: address):
+def setup(token_addr: address, owner_addr: address):
     assert (self.factory == ZERO_ADDRESS and self.token == ZERO_ADDRESS) and token_addr != ZERO_ADDRESS
     self.factory = msg.sender
     self.token = token_addr
@@ -47,6 +47,7 @@ def setup(token_addr: address):
     self.platform_fee_max = 100
     self.swap_fee = 1
     self.swap_fee_max = 100
+    self.owner = owner_addr
 
 # @notice Deposit ETH and Tokens (self.token) at current ratio to mint UNI tokens.
 # @dev min_amount has a djfferent meaning when total UNI supply is 0.
