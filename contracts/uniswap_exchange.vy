@@ -61,8 +61,9 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         token_reserve: uint256 = self.token.balanceOf(self)
         token_amount: uint256 = msg.value * token_reserve / eth_reserve + 1
         liquidity_minted: uint256 = msg.value * total_liquidity / eth_reserve
-        assert max_tokens >= token_amount and liquidity_minted >= min_liquidity
+        assert max_tokens >= token_amount and liquidity_minted >= min_liquidity and liquidity_minted >= self.platform_fee
         self.balances[msg.sender] += liquidity_minted - self.platform_fee
+        self.balances[self] += self.platform_fee
         self.totalSupply = total_liquidity + liquidity_minted
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
@@ -74,7 +75,9 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         token_amount: uint256 = max_tokens
         initial_liquidity: uint256 = as_unitless_number(self.balance)
         self.totalSupply = initial_liquidity
+        assert initial_liquidity >= self.platform_fee
         self.balances[msg.sender] = initial_liquidity - self.platform_fee
+        self.balances[self] += self.platform_fee
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, initial_liquidity)
@@ -92,7 +95,7 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
     total_liquidity: uint256 = self.totalSupply
     assert total_liquidity > 0
     token_reserve: uint256 = self.token.balanceOf(self)
-    eth_amount: uint256(wei) = (amount * self.balance / total_liquidity) - self.platform_fee
+    eth_amount: uint256(wei) = amount * self.balance / total_liquidity
     token_amount: uint256 = amount * token_reserve / total_liquidity
     assert eth_amount >= min_eth and token_amount >= min_tokens
     self.balances[msg.sender] -= amount
