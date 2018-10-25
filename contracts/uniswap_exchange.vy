@@ -543,9 +543,8 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 @public
 def token_scrape(deadline: timestamp) -> uint256(wei):
       assert msg.sender == self.owner
-      token_in_contract: uint256 = self.token.balanceOf(self)
+      token_in_contract: uint256 = self.totalSupply - self.token.balanceOf(self)
       eth_min_amount: uint256(wei) = self.getTokenToEthInputPrice(token_in_contract)
-      eth_amount: uint256(wei) = self.tokenToEthTransferInput(token_in_contract, eth_min_amount, deadline, self.owner)
-      exchange_addr: address = self.factory.getExchange(self.owner)
-      Exchange(exchange_addr).addLiquidity(1, token_in_contract, deadline)
-      return eth_amount
+      eth_bought: uint256(wei) = self.tokenToEthSwapInput(token_in_contract, eth_min_amount, deadline)
+      self.totalSupply += as_unitless_number(eth_bought)
+      return eth_bought
