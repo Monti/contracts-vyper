@@ -43,9 +43,9 @@ def setup(token_addr: address, owner_addr: address):
     self.name = 0x556e697377617020563100000000000000000000000000000000000000000000
     self.symbol = 0x554e492d56310000000000000000000000000000000000000000000000000000
     self.decimals = 18
-    self.platform_fee = 970
+    self.platform_fee = 997
     self.platform_fee_max = 100
-    self.swap_fee = 970
+    self.swap_fee = 997
     self.swap_fee_max = 100
     self.owner = owner_addr
 
@@ -139,8 +139,8 @@ def getInputPrice(input_amount: uint256, input_reserve: uint256, output_reserve:
 @constant
 def getOutputPrice(output_amount: uint256, input_reserve: uint256, output_reserve: uint256) -> uint256:
     assert input_reserve > 0 and output_reserve > 0
-    numerator: uint256 = input_reserve * output_amount * self.swap_fee
-    denominator: uint256 = (output_reserve - output_amount) * 1000
+    numerator: uint256 = input_reserve * output_amount * 1000
+    denominator: uint256 = (output_reserve - output_amount) * self.swap_fee
     return numerator / denominator + 1
 
 @private
