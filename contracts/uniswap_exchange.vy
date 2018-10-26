@@ -28,9 +28,9 @@ token: address(ERC20)                             # address of the ERC20 token t
 factory: Factory                                  # interface for the factory that created this contract
 last_invariant: decimal                           #
 owner: address                                    #
-platform_fee: uint256                             # must be between 1 to 1000
+platform_fee: uint256                             # must be between 1 to 1000 that represent the the fee present from 1000
 platform_fee_max: uint256                         #
-swap_fee: uint256                                 # must be between 1 to 1000
+swap_fee: uint256                                 # must be between 1 to 1000 that represent the the fee present from 1000
 swap_fee_max: uint256                             #
 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
@@ -43,9 +43,9 @@ def setup(token_addr: address, owner_addr: address):
     self.name = 0x556e697377617020563100000000000000000000000000000000000000000000
     self.symbol = 0x554e492d56310000000000000000000000000000000000000000000000000000
     self.decimals = 18
-    self.platform_fee = 1
+    self.platform_fee = 970
     self.platform_fee_max = 100
-    self.swap_fee = 1
+    self.swap_fee = 970
     self.swap_fee_max = 100
     self.owner = owner_addr
 
@@ -518,13 +518,13 @@ def allowance(_owner : address, _spender : address) -> uint256:
 @public
 def adjust_swap_fee(_new_swap_fee : uint256) -> bool:
       assert _new_swap_fee < self.swap_fee_max
-      self.swap_fee = _new_swap_fee
+      self.swap_fee = 1000 - _new_swap_fee
       return True
 
 @public
 def adjust_platform_fee(_new_platform_fee : uint256) -> bool:
       assert _new_platform_fee < self.platform_fee_max
-      self.platform_fee = _new_platform_fee
+      self.platform_fee = 1000 - _new_platform_fee
       return True
 
 @public
