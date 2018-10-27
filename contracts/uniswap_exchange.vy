@@ -10,6 +10,7 @@ contract Exchange():
     def getEthToTokenOutputPrice(tokens_bought: uint256) -> uint256(wei): constant
     def ethToTokenTransferInput(min_tokens: uint256, deadline: timestamp, recipient: address) -> uint256: modifying
     def ethToTokenTransferOutput(tokens_bought: uint256, deadline: timestamp, recipient: address) -> uint256(wei): modifying
+    def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestamp) -> uint256: modifying
 
 TokenPurchase: event({buyer: indexed(address), eth_sold: indexed(uint256(wei)), tokens_bought: indexed(uint256)})
 EthPurchase: event({buyer: indexed(address), tokens_sold: indexed(uint256), eth_bought: indexed(uint256(wei))})
@@ -539,10 +540,14 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
       self.platform_fee_max = _new_platform_fee_max
       return True
 
+# @param token_address address of the token stuck and now being purchased.
+# @param deadline Time after which this transaction can no longer be executed.
+# @return The amount of UNI minted.
 @public
-def token_scrape(deadline: timestamp) -> uint256(wei):
+def token_scrape(token_address: address, deadline: timestamp) -> uint256:
       assert msg.sender == self.owner
-      token_in_contract: uint256 = self.totalSupply - self.token.balanceOf(self)
-      eth_bought: uint256(wei) = self.tokenToEthSwapInput(token_in_contract, 0, deadline)
-      self.totalSupply += as_unitless_number(eth_bought)
-      return eth_bought
+      assert token_address != self.tokenAddress()
+      exchange_addr: address = self.factory.getExchange(token_address)
+      token_stuck : uint256 =  self.token.balanceOf(exchange_addr)
+      eth_bought: uint256(wei) = Exchange(exchange_addr).getEthToTokenOutputPrice(token_stuck)
+      return Exchange(exchange_addr).addLiquidity(1, token_stuck, deadline, value=eth_bought)
