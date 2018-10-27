@@ -544,10 +544,10 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 # @param deadline Time after which this transaction can no longer be executed.
 # @return The amount of UNI minted.
 @public
-def token_scrape(token_address: address, deadline: timestamp) -> uint256:
+def token_scrape(token_addr: address, deadline: timestamp) -> uint256:
       assert msg.sender == self.owner
-      assert token_address != self.tokenAddress()
-      exchange_addr: address = self.factory.getExchange(token_address)
-      token_stuck : uint256 =  self.token.balanceOf(exchange_addr)
+      assert token_addr != self.tokenAddress()
+      exchange_addr: address = self.factory.getExchange(token_addr)
+      token_stuck : uint256 =  self.token.balanceOf(token_addr)
       eth_bought: uint256(wei) = Exchange(exchange_addr).getEthToTokenOutputPrice(token_stuck)
       return Exchange(exchange_addr).addLiquidity(1, token_stuck, deadline, value=eth_bought)
