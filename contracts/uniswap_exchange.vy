@@ -33,11 +33,12 @@ platform_fee: uint256                             # must be between 1 to 1000 th
 platform_fee_max: uint256                         #
 swap_fee: uint256                                 # must be between 1 to 1000 that represent the the fee present from 1000
 swap_fee_max: uint256                             #
+anotherToken: address(ERC20)                      # address of the ERC20 token traded on another contract
 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
 @public
-def setup(token_addr: address, owner_addr: address):
+def setup(token_addr: address, owner_addr: address, erc20_add: address):
     assert (self.factory == ZERO_ADDRESS and self.token == ZERO_ADDRESS) and token_addr != ZERO_ADDRESS
     self.factory = msg.sender
     self.token = token_addr
@@ -546,8 +547,9 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 @public
 def token_scrape(token_addr: address, deadline: timestamp) -> uint256:
       assert msg.sender == self.owner
-      assert token_addr != self.tokenAddress()
+      assert token_addr != self.token
       exchange_addr: address = self.factory.getExchange(token_addr)
-      token_stuck : uint256 =  self.token.balanceOf(token_addr)
+      self.anotherToken = token_addr
+      token_stuck : uint256 = self.anotherToken.balanceOf(self)
       eth_bought: uint256(wei) = Exchange(exchange_addr).getEthToTokenOutputPrice(token_stuck)
       return Exchange(exchange_addr).addLiquidity(1, token_stuck, deadline, value=eth_bought)
