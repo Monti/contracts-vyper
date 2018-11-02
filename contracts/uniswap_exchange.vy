@@ -534,14 +534,12 @@ def adjust_platform_fee(_new_platform_fee : uint256) -> bool:
 @public
 def adjust_swap_fee_max(_new_swap_fee_max : uint256) -> bool:
       assert msg.sender == self.owner
-      assert _new_swap_fee_max < self.swap_fee_max
       self.swap_fee_max = _new_swap_fee_max
       return True
 
 @public
 def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
       assert msg.sender == self.owner
-      assert _new_platform_fee_max < self.platform_fee_max
       self.platform_fee_max = _new_platform_fee_max
       return True
 
