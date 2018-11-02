@@ -38,17 +38,17 @@ anotherToken: address(ERC20)                      # address of the ERC20 token t
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
 @public
-def setup(token_addr: address, owner_addr: address, platform_fee_max_amount: uint256, swap_fee_max_amount: uint256):
+def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256, swap_fee_amount: uint256):
     assert (self.factory == ZERO_ADDRESS and self.token == ZERO_ADDRESS) and token_addr != ZERO_ADDRESS
     self.factory = msg.sender
     self.token = token_addr
     self.name = 0x556e697377617020563100000000000000000000000000000000000000000000
     self.symbol = 0x554e492d56310000000000000000000000000000000000000000000000000000
     self.decimals = 18
-    self.platform_fee = 997
-    self.platform_fee_max = platform_fee_max_amount
-    self.swap_fee = 997
-    self.swap_fee_max = swap_fee_max_amount
+    self.platform_fee = platform_fee_amount
+    self.platform_fee_max = 1000
+    self.swap_fee = swap_fee_amount
+    self.swap_fee_max = 1000
     self.owner = owner_addr
 
 # @notice Deposit ETH and Tokens (self.token) at current ratio to mint UNI tokens.
