@@ -1,5 +1,4 @@
 # @title Uniswap Exchange Interface V1
-# @author Hayden Adams (@haydenadams)
 # @notice Source code found at https://github.com/uniswap
 # @notice Use at your own risk
 
@@ -134,8 +133,8 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
     self.totalSupply = total_liquidity - amount + platform_liquidity_minted
     self.balances[self.owner] += platform_liquidity_minted
     self.previous_invariant = (eth_reserve - eth_amount)*(token_reserve - token_amount)
-    assert self.token.transfer(msg.sender, token_amount)
     send(msg.sender, eth_amount)
+    assert self.token.transfer(msg.sender, token_amount)
     log.RemoveLiquidity(msg.sender, eth_amount, token_amount)
     log.Transfer(msg.sender, ZERO_ADDRESS, amount)
     return eth_amount, token_amount
@@ -249,8 +248,8 @@ def tokenToEthInput(tokens_sold: uint256, min_eth: uint256(wei), deadline: times
     eth_bought: uint256 = self.getInputPrice(tokens_sold, token_reserve, as_unitless_number(self.balance))
     wei_bought: uint256(wei) = as_wei_value(eth_bought, 'wei')
     assert wei_bought >= min_eth
-    assert self.token.transferFrom(buyer, self, tokens_sold)
     send(recipient, wei_bought)
+    assert self.token.transferFrom(buyer, self, tokens_sold)
     log.EthPurchase(buyer, tokens_sold, wei_bought)
     return wei_bought
 
@@ -284,8 +283,8 @@ def tokenToEthOutput(eth_bought: uint256(wei), max_tokens: uint256, deadline: ti
     tokens_sold: uint256 = self.getOutputPrice(as_unitless_number(eth_bought), token_reserve, as_unitless_number(self.balance))
     # tokens sold is always > 0
     assert max_tokens >= tokens_sold
-    assert self.token.transferFrom(buyer, self, tokens_sold)
     send(recipient, eth_bought)
+    assert self.token.transferFrom(buyer, self, tokens_sold)
     log.EthPurchase(buyer, tokens_sold, eth_bought)
     return tokens_sold
 
