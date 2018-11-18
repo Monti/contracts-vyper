@@ -35,8 +35,8 @@ platform_fee_max: uint256                         #
 swap_fee: uint256                                 # must be between 1 to 10000 that represent the the fee percent from 10000
 swap_fee_max: uint256                             #
 anotherToken: address(ERC20)                      # address of the ERC20 token traded on another contract
-last_checked_token_balance: uint256               # Token balance since last liquidity addition, used for platform fee calculations
-last_checked_eth_balance : uint256                # Eth balance since last liquidity addition, used for platform fee calculations
+previous_invariant: uint256                       # Previous invariant used for profit calculations
+
 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
@@ -53,8 +53,19 @@ def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256
     self.swap_fee = swap_fee_amount
     self.swap_fee_max = 10000
     self.owner = owner_addr
-    self.last_checked_eth_balance = 0
-    self.last_checked_token_balance = 0
+    self.previous_invariant = 0
+
+# @dev Calculates the square root of an integer or the closest approximation    
+@private
+def sqrt(x: uint256) -> uint256:
+    z: uint256 = (x + 1) / 2
+    y: uint256 = x
+    for i in range(6):
+        y = z
+        z = ((x / z) + z) / 2
+    return y
+
+
 
 # @notice Deposit ETH and Tokens (self.token) at current ratio to mint UNI tokens.
 # @dev min_amount has a djfferent meaning when total UNI supply is 0.
@@ -71,16 +82,16 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         assert min_liquidity > 0
         eth_reserve: uint256 = as_unitless_number(self.balance - msg.value)
         token_reserve: uint256 = self.token.balanceOf(self)
-        platform_profit: uint256 = (eth_reserve + token_reserve)/(self.last_checked_eth_balance + self.last_checked_token_balance) - 1
-        platform_liquidity_minted: uint256 = total_liquidity * platform_profit * (10000 - self.platform_fee)/(10000+10000*platform_profit-platform_profit*(10000 - self.platform_fee))
+        # Platform profit is in ppm so we divide the liquidity minted by a 1000
+        platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant)
+        platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * (10000 - self.platform_fee)/(10000+10000*platform_profit-platform_profit*(10000 - self.platform_fee)))/1000
         token_amount: uint256 = as_unitless_number(msg.value) * token_reserve / eth_reserve + 1
         liquidity_minted: uint256 = as_unitless_number(msg.value) * (total_liquidity + platform_liquidity_minted) / eth_reserve
         assert max_tokens >= token_amount and liquidity_minted >= min_liquidity
         self.balances[msg.sender] += liquidity_minted
         self.balances[self.owner] += platform_liquidity_minted
         self.totalSupply = total_liquidity + liquidity_minted + platform_liquidity_minted
-        self.last_checked_eth_balance = as_unitless_number(self.balance)
-        self.last_checked_token_balance = token_amount + token_amount
+        self.previous_invariant = self.balance * (token_reserve + token_amount)
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, liquidity_minted)
@@ -93,8 +104,7 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         initial_liquidity: uint256 = as_unitless_number(self.balance)
         self.totalSupply = initial_liquidity
         self.balances[msg.sender] = initial_liquidity
-        self.last_checked_eth_balance = as_unitless_number(msg.value)
-        self.last_checked_token_balance = max_tokens 
+        self.previous_invariant = as_unitless_number(msg.value) * max_tokens
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, initial_liquidity)
@@ -112,11 +122,18 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
     total_liquidity: uint256 = self.totalSupply
     assert total_liquidity > 0
     token_reserve: uint256 = self.token.balanceOf(self)
-    eth_amount: uint256(wei) = amount * self.balance / total_liquidity
-    token_amount: uint256 = amount * token_reserve / total_liquidity
+    eth_reserve : uint256 = as_unitless_number(self.balance)
+    # Platform profit is in ppm so we divide the liquidity minted by a 1000
+    platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant)
+    platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * (10000 - self.platform_fee)/(10000+10000*platform_profit-platform_profit*(10000 - self.platform_fee)))/1000
+
+    eth_amount: uint256(wei) = amount * self.balance / (total_liquidity + platform_liquidity_minted)
+    token_amount: uint256 = amount * token_reserve / (total_liquidity + platform_liquidity_minted)
     assert eth_amount >= min_eth and token_amount >= min_tokens
     self.balances[msg.sender] -= amount
-    self.totalSupply = total_liquidity - amount
+    self.totalSupply = total_liquidity - amount + platform_liquidity_minted
+    self.balances[self.owner] += platform_liquidity_minted
+    self.previous_invariant = (eth_reserve - eth_amount)*(token_reserve - token_amount)
     assert self.token.transfer(msg.sender, token_amount)
     send(msg.sender, eth_amount)
     log.RemoveLiquidity(msg.sender, eth_amount, token_amount)
