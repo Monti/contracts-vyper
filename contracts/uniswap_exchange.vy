@@ -10,6 +10,7 @@ contract Exchange():
     def ethToTokenTransferInput(min_tokens: uint256, deadline: timestamp, recipient: address) -> uint256: modifying
     def ethToTokenTransferOutput(tokens_bought: uint256, deadline: timestamp, recipient: address) -> uint256(wei): modifying
     def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestamp) -> uint256: modifying
+    def tokenToEthTransferInput(tokens_sold: uint256, min_eth: uint256(wei), deadline: timestamp, recipient: address) -> uint256(wei) : modifying
 
 TokenPurchase: event({buyer: indexed(address), eth_sold: indexed(uint256(wei)), tokens_bought: indexed(uint256)})
 EthPurchase: event({buyer: indexed(address), tokens_sold: indexed(uint256), eth_bought: indexed(uint256(wei))})
@@ -28,11 +29,13 @@ token: address(ERC20)                             # address of the ERC20 token t
 factory: Factory                                  # interface for the factory that created this contract
 last_invariant: decimal                           #
 owner: address                                    #
-platform_fee: uint256                             # must be between 1 to 1000 that represent the the fee present from 1000
+platform_fee: uint256                             # must be between 1 to 10000 that represent the the fee percent from 10000
 platform_fee_max: uint256                         #
-swap_fee: uint256                                 # must be between 1 to 1000 that represent the the fee present from 1000
+swap_fee: uint256                                 # must be between 1 to 10000 that represent the the fee percent from 10000
 swap_fee_max: uint256                             #
 anotherToken: address(ERC20)                      # address of the ERC20 token traded on another contract
+previous_invariant: uint256                       # Previous invariant used for profit calculations
+
 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
@@ -45,10 +48,23 @@ def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256
     self.symbol = 0x554e492d56310000000000000000000000000000000000000000000000000000
     self.decimals = 18
     self.platform_fee = platform_fee_amount
-    self.platform_fee_max = 1000
+    self.platform_fee_max = 10000
     self.swap_fee = swap_fee_amount
-    self.swap_fee_max = 1000
+    self.swap_fee_max = 10000
     self.owner = owner_addr
+    self.previous_invariant = 0
+
+# @dev Calculates the square root of an integer or the closest approximation    
+@private
+def sqrt(x: uint256) -> uint256:
+    z: uint256 = (x + 1) / 2
+    y: uint256 = x
+    for i in range(6):
+        y = z
+        z = ((x / z) + z) / 2
+    return y
+
+
 
 # @notice Deposit ETH and Tokens (self.token) at current ratio to mint UNI tokens.
 # @dev min_amount has a djfferent meaning when total UNI supply is 0.
@@ -63,20 +79,22 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
     total_liquidity: uint256 = self.totalSupply
     if total_liquidity > 0:
         assert min_liquidity > 0
-        eth_reserve: uint256(wei) = self.balance - msg.value
+        eth_reserve: uint256 = as_unitless_number(self.balance - msg.value)
         token_reserve: uint256 = self.token.balanceOf(self)
-        token_amount: uint256 = msg.value * token_reserve / eth_reserve + 1
-        liquidity_minted: uint256 = msg.value * total_liquidity / eth_reserve
+        # Platform profit is in ppm so we divide the liquidity minted by a 1000
+        platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant)
+        platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * (10000 - self.platform_fee)/(10000+10000*platform_profit-platform_profit*(10000 - self.platform_fee)))/1000
+        token_amount: uint256 = as_unitless_number(msg.value) * token_reserve / eth_reserve + 1
+        liquidity_minted: uint256 = as_unitless_number(msg.value) * (total_liquidity + platform_liquidity_minted) / eth_reserve
         assert max_tokens >= token_amount and liquidity_minted >= min_liquidity
-        assert liquidity_minted >= self.platform_fee
-        liquidity_minted_with_fee : uint256 = liquidity_minted * self.platform_fee / 1000
-        platform_fee_per_liquidity : uint256 = liquidity_minted - liquidity_minted_with_fee
-        self.balances[msg.sender] += liquidity_minted_with_fee
-        self.balances[self.owner] += platform_fee_per_liquidity
-        self.totalSupply = total_liquidity + liquidity_minted
+        self.balances[msg.sender] += liquidity_minted
+        self.balances[self.owner] += platform_liquidity_minted
+        self.totalSupply = total_liquidity + liquidity_minted + platform_liquidity_minted
+        self.previous_invariant = self.balance * (token_reserve + token_amount)
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, liquidity_minted)
+        log.Transfer(ZERO_ADDRESS, self.owner, platform_liquidity_minted)
         return liquidity_minted
     else:
         assert (self.factory != ZERO_ADDRESS and self.token != ZERO_ADDRESS) and msg.value >= 1000000000
@@ -84,11 +102,8 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         token_amount: uint256 = max_tokens
         initial_liquidity: uint256 = as_unitless_number(self.balance)
         self.totalSupply = initial_liquidity
-        assert initial_liquidity >= self.platform_fee
-        liquidity_minted_with_fee : uint256 = initial_liquidity * self.platform_fee / 1000
-        platform_fee_per_liquidity : uint256 = initial_liquidity - liquidity_minted_with_fee
-        self.balances[msg.sender] = liquidity_minted_with_fee
-        self.balances[self.owner] += platform_fee_per_liquidity
+        self.balances[msg.sender] = initial_liquidity
+        self.previous_invariant = as_unitless_number(msg.value) * max_tokens
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, initial_liquidity)
@@ -106,11 +121,18 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
     total_liquidity: uint256 = self.totalSupply
     assert total_liquidity > 0
     token_reserve: uint256 = self.token.balanceOf(self)
-    eth_amount: uint256(wei) = amount * self.balance / total_liquidity
-    token_amount: uint256 = amount * token_reserve / total_liquidity
+    eth_reserve : uint256 = as_unitless_number(self.balance)
+    # Platform profit is in ppm so we divide the liquidity minted by a 1000
+    platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant)
+    platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * (10000 - self.platform_fee)/(10000+10000*platform_profit-platform_profit*(10000 - self.platform_fee)))/1000
+
+    eth_amount: uint256(wei) = amount * self.balance / (total_liquidity + platform_liquidity_minted)
+    token_amount: uint256 = amount * token_reserve / (total_liquidity + platform_liquidity_minted)
     assert eth_amount >= min_eth and token_amount >= min_tokens
     self.balances[msg.sender] -= amount
-    self.totalSupply = total_liquidity - amount
+    self.totalSupply = total_liquidity - amount + platform_liquidity_minted
+    self.balances[self.owner] += platform_liquidity_minted
+    self.previous_invariant = (eth_reserve - eth_amount)*(token_reserve - token_amount)
     send(msg.sender, eth_amount)
     assert self.token.transfer(msg.sender, token_amount)
     log.RemoveLiquidity(msg.sender, eth_amount, token_amount)
@@ -128,7 +150,7 @@ def getInputPrice(input_amount: uint256, input_reserve: uint256, output_reserve:
     assert input_reserve > 0 and output_reserve > 0
     input_amount_with_fee: uint256 = input_amount * self.swap_fee
     numerator: uint256 = input_amount_with_fee * output_reserve
-    denominator: uint256 = (input_reserve * 1000) + input_amount_with_fee
+    denominator: uint256 = (input_reserve * 10000) + input_amount_with_fee
     return numerator / denominator
 
 # @dev Pricing functon for converting between ETH and Tokens.
@@ -140,7 +162,7 @@ def getInputPrice(input_amount: uint256, input_reserve: uint256, output_reserve:
 @constant
 def getOutputPrice(output_amount: uint256, input_reserve: uint256, output_reserve: uint256) -> uint256:
     assert input_reserve > 0 and output_reserve > 0
-    numerator: uint256 = input_reserve * output_amount * 1000
+    numerator: uint256 = input_reserve * output_amount * 10000
     denominator: uint256 = (output_reserve - output_amount) * self.swap_fee
     return numerator / denominator + 1
 
@@ -520,14 +542,14 @@ def allowance(_owner : address, _spender : address) -> uint256:
 def adjust_swap_fee(_new_swap_fee : uint256) -> bool:
       assert msg.sender == self.owner
       assert _new_swap_fee < self.swap_fee_max
-      self.swap_fee = 1000 - _new_swap_fee
+      self.swap_fee = 10000 - _new_swap_fee
       return True
 
 @public
 def adjust_platform_fee(_new_platform_fee : uint256) -> bool:
       assert msg.sender == self.owner
       assert _new_platform_fee < self.platform_fee_max
-      self.platform_fee = 1000 - _new_platform_fee
+      self.platform_fee = 100000 - _new_platform_fee
       return True
 
 @public
@@ -544,13 +566,14 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 
 # @param token_address address of the token stuck and now being purchased.
 # @param deadline Time after which this transaction can no longer be executed.
-# @return The amount of UNI minted.
+# @return The amount of Eth bought.
 @public
-def token_scrape(token_addr: address, deadline: timestamp) -> uint256:
+def token_scrape(token_addr: address, deadline: timestamp) -> uint256(wei):
       assert msg.sender == self.owner
       assert token_addr != self.token
       exchange_addr: address = self.factory.getExchange(token_addr)
       self.anotherToken = token_addr
       token_stuck : uint256 = self.anotherToken.balanceOf(self)
-      eth_bought: uint256(wei) = Exchange(exchange_addr).getEthToTokenOutputPrice(token_stuck)
-      return Exchange(exchange_addr).addLiquidity(1, token_stuck, deadline, value=eth_bought)
+      self.anotherToken.approve(exchange_addr, token_stuck)
+      eth_bought : uint256(wei) = Exchange(exchange_addr).tokenToEthTransferInput(token_stuck, 1, deadline, exchange_addr)
+      return eth_bought
