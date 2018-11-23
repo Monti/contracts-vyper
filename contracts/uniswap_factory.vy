@@ -8,20 +8,42 @@ tokenCount: public(uint256)
 token_to_exchange: address[address]
 exchange_to_token: address[address]
 id_to_token: address[uint256]
+owner : public(address)
+defualt_swap_fee: uint256
+default_platform_fee :uint256
+
 
 @public
 def initializeFactory(template: address):
     assert self.exchangeTemplate == ZERO_ADDRESS
     assert template != ZERO_ADDRESS
     self.exchangeTemplate = template
+    self.deafult_swap_fee = 0
+    self.default_platform_fee = 0
+    self.owner = msg.sender
 
 @public
-def createExchange(token: address, owner: address) -> address:
+def setOwner(_owner: address):
+    assert msg.sender == self.owner
+    self.owner = _owner
+
+@public
+def setPlatformFee(_default_platform_fee: uint256):
+    assert msg.sender == self.owner
+    self.default_platform_fee = _default_platform_fee
+
+@public
+def setSwapFee(_default_swap_fee: uint256):
+    assert msg.sender == self.owner
+    self.defualt_swap_fee = _default_swap_fee
+
+@public
+def createExchange(token: address) -> address:
     assert token != ZERO_ADDRESS
     assert self.exchangeTemplate != ZERO_ADDRESS
     assert self.token_to_exchange[token] == ZERO_ADDRESS
     exchange: address = create_with_code_of(self.exchangeTemplate)
-    Exchange(exchange).setup(token, owner)
+    Exchange(exchange).setup(token, self.owner, self.defualt_swap_fee, self.default_platform_fee)
     self.token_to_exchange[token] = exchange
     self.exchange_to_token[exchange] = token
     token_id: uint256 = self.tokenCount + 1
