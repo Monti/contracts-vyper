@@ -1,5 +1,5 @@
 contract Exchange():
-    def setup(token_addr: address, owner: address): modifying
+    def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256, swap_fee_amount: uint256, max_platform_fee: uint256, max_swap_fee:uint256) : modifying
 
 NewExchange: event({token: indexed(address), exchange: indexed(address)})
 
@@ -11,6 +11,8 @@ id_to_token: address[uint256]
 owner : public(address)
 defualt_swap_fee: uint256
 default_platform_fee :uint256
+default_max_swap_fee: uint256
+default_max_platform_fee: uint256
 
 
 @public
@@ -18,9 +20,11 @@ def initializeFactory(template: address):
     assert self.exchangeTemplate == ZERO_ADDRESS
     assert template != ZERO_ADDRESS
     self.exchangeTemplate = template
-    self.deafult_swap_fee = 0
-    self.default_platform_fee = 0
     self.owner = msg.sender
+    self.default_max_platform_fee = 10000
+    self.default_max_swap_fee = 10000
+    self.default_platform_fee = 0
+    self.defualt_swap_fee = 10000
 
 @public
 def setOwner(_owner: address):
@@ -38,12 +42,23 @@ def setSwapFee(_default_swap_fee: uint256):
     self.defualt_swap_fee = _default_swap_fee
 
 @public
+def setMaxPlatformFee(_default_max_platform_fee: uint256):
+    assert msg.sender == self.owner
+    self.default_max_platform_fee = _default_max_platform_fee
+
+@public
+def setMaxSwapFee(_default_max_swap_fee: uint256):
+    assert msg.sender == self.owner
+    self.default_max_swap_fee = _default_max_swap_fee
+
+
+@public
 def createExchange(token: address) -> address:
     assert token != ZERO_ADDRESS
     assert self.exchangeTemplate != ZERO_ADDRESS
     assert self.token_to_exchange[token] == ZERO_ADDRESS
     exchange: address = create_with_code_of(self.exchangeTemplate)
-    Exchange(exchange).setup(token, self.owner, self.defualt_swap_fee, self.default_platform_fee)
+    Exchange(exchange).setup(token, self.owner, self.default_platform_fee, self.defualt_swap_fee, self.default_max_platform_fee, self.default_max_swap_fee)
     self.token_to_exchange[token] = exchange
     self.exchange_to_token[exchange] = token
     token_id: uint256 = self.tokenCount + 1

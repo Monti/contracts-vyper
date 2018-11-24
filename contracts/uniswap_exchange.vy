@@ -11,6 +11,7 @@ contract Exchange():
     def ethToTokenTransferOutput(tokens_bought: uint256, deadline: timestamp, recipient: address) -> uint256(wei): modifying
     def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestamp) -> uint256: modifying
     def tokenToEthTransferInput(tokens_sold: uint256, min_eth: uint256(wei), deadline: timestamp, recipient: address) -> uint256(wei) : modifying
+    def tokenToEthSwapInput(tokens_sold: uint256, min_eth: uint256(wei), deadline: timestamp) -> uint256(wei) : modifying
 
 TokenPurchase: event({buyer: indexed(address), eth_sold: indexed(uint256(wei)), tokens_bought: indexed(uint256)})
 EthPurchase: event({buyer: indexed(address), tokens_sold: indexed(uint256), eth_bought: indexed(uint256(wei))})
@@ -40,7 +41,7 @@ previous_invariant: uint256                       # Previous invariant used for 
 # @dev This function acts as a contract constructor which is not currently supported in contracts deployed
 #      using create_with_code_of(). It is called once by the factory during contract creation.
 @public
-def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256, swap_fee_amount: uint256):
+def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256, swap_fee_amount: uint256, max_platform_fee: uint256, max_swap_fee:uint256):
     assert (self.factory == ZERO_ADDRESS and self.token == ZERO_ADDRESS) and token_addr != ZERO_ADDRESS
     self.factory = msg.sender
     self.token = token_addr
@@ -48,9 +49,9 @@ def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256
     self.symbol = 0x554e492d56310000000000000000000000000000000000000000000000000000
     self.decimals = 18
     self.platform_fee = platform_fee_amount
-    self.platform_fee_max = 10000
+    self.platform_fee_max = max_platform_fee
     self.swap_fee = swap_fee_amount
-    self.swap_fee_max = 10000
+    self.swap_fee_max = max_swap_fee
     self.owner = owner_addr
     self.previous_invariant = 0
 
@@ -90,7 +91,7 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         self.balances[msg.sender] += liquidity_minted
         self.balances[self.owner] += platform_liquidity_minted
         self.totalSupply = total_liquidity + liquidity_minted + platform_liquidity_minted
-        self.previous_invariant = self.balance * (token_reserve + token_amount)
+        self.previous_invariant = as_unitless_number(self.balance) * (token_reserve + token_amount)
         assert self.token.transferFrom(msg.sender, self, token_amount)
         log.AddLiquidity(msg.sender, msg.value, token_amount)
         log.Transfer(ZERO_ADDRESS, msg.sender, liquidity_minted)
@@ -132,7 +133,7 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
     self.balances[msg.sender] -= amount
     self.totalSupply = total_liquidity - amount + platform_liquidity_minted
     self.balances[self.owner] += platform_liquidity_minted
-    self.previous_invariant = (eth_reserve - eth_amount)*(token_reserve - token_amount)
+    self.previous_invariant = (eth_reserve - as_unitless_number(eth_amount))*(token_reserve - token_amount)
     send(msg.sender, eth_amount)
     assert self.token.transfer(msg.sender, token_amount)
     log.RemoveLiquidity(msg.sender, eth_amount, token_amount)
@@ -569,11 +570,10 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 # @return The amount of Eth bought.
 @public
 def token_scrape(token_addr: address, deadline: timestamp) -> uint256(wei):
-      assert msg.sender == self.owner
       assert token_addr != self.token
       exchange_addr: address = self.factory.getExchange(token_addr)
       self.anotherToken = token_addr
       token_stuck : uint256 = self.anotherToken.balanceOf(self)
       self.anotherToken.approve(exchange_addr, token_stuck)
-      eth_bought : uint256(wei) = Exchange(exchange_addr).tokenToEthTransferInput(token_stuck, 1, deadline, exchange_addr)
+      eth_bought : uint256(wei) = Exchange(exchange_addr).tokenToEthSwapInput(token_stuck, 1, deadline)
       return eth_bought
