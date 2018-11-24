@@ -21,10 +21,10 @@ def initializeFactory(template: address):
     assert template != ZERO_ADDRESS
     self.exchangeTemplate = template
     self.owner = msg.sender
-    self.default_max_platform_fee = 10000
-    self.default_max_swap_fee = 10000
+    self.default_max_platform_fee = 1000
+    self.default_max_swap_fee = 1000
     self.default_platform_fee = 0
-    self.defualt_swap_fee = 10000
+    self.defualt_swap_fee = 200
 
 @public
 def setOwner(_owner: address):
@@ -34,21 +34,25 @@ def setOwner(_owner: address):
 @public
 def setPlatformFee(_default_platform_fee: uint256):
     assert msg.sender == self.owner
+    assert _default_platform_fee < self.default_max_platform_fee
     self.default_platform_fee = _default_platform_fee
 
 @public
 def setSwapFee(_default_swap_fee: uint256):
     assert msg.sender == self.owner
+    assert _default_swap_fee < self.default_max_swap_fee
     self.defualt_swap_fee = _default_swap_fee
 
 @public
 def setMaxPlatformFee(_default_max_platform_fee: uint256):
     assert msg.sender == self.owner
+    assert _default_max_platform_fee < self.default_max_platform_fee
     self.default_max_platform_fee = _default_max_platform_fee
 
 @public
 def setMaxSwapFee(_default_max_swap_fee: uint256):
     assert msg.sender == self.owner
+    assert _default_max_swap_fee < self.default_max_swap_fee
     self.default_max_swap_fee = _default_max_swap_fee
 
 
