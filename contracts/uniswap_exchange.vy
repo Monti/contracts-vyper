@@ -66,6 +66,12 @@ def sqrt(x: uint256) -> uint256:
     return y
 
 
+@private
+def cacluate_platform_profit(eth_reserve: uint256, token_reserve: uint256) -> uint256:
+    total_liquidity: uint256 = self.totalSupply
+    platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant - 1000000)
+    platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * self.platform_fee/(10000+platform_profit*(10000 - self.platform_fee)))/1000
+    return platform_liquidity_minted
 
 # @notice Deposit ETH and Tokens (self.token) at current ratio to mint UNI tokens.
 # @dev min_amount has a djfferent meaning when total UNI supply is 0.
@@ -82,9 +88,8 @@ def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestam
         assert min_liquidity > 0
         eth_reserve: uint256 = as_unitless_number(self.balance - msg.value)
         token_reserve: uint256 = self.token.balanceOf(self)
-        # Platform profit is in ppm so we divide the liquidity minted by a 1000
-        platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant)
-        platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * (10000 - self.platform_fee)/(10000+10000*platform_profit-platform_profit*(10000 - self.platform_fee)))/1000
+        
+        platform_liquidity_minted: uint256 = self.cacluate_platform_profit(eth_reserve, token_reserve)
         token_amount: uint256 = as_unitless_number(msg.value) * token_reserve / eth_reserve + 1
         liquidity_minted: uint256 = as_unitless_number(msg.value) * (total_liquidity + platform_liquidity_minted) / eth_reserve
         assert max_tokens >= token_amount and liquidity_minted >= min_liquidity
@@ -124,8 +129,7 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
     token_reserve: uint256 = self.token.balanceOf(self)
     eth_reserve : uint256 = as_unitless_number(self.balance)
     # Platform profit is in ppm so we divide the liquidity minted by a 1000
-    platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant)
-    platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * (10000 - self.platform_fee)/(10000+10000*platform_profit-platform_profit*(10000 - self.platform_fee)))/1000
+    platform_liquidity_minted: uint256 = self.cacluate_platform_profit(eth_reserve, token_reserve)
 
     eth_amount: uint256(wei) = amount * self.balance / (total_liquidity + platform_liquidity_minted)
     token_amount: uint256 = amount * token_reserve / (total_liquidity + platform_liquidity_minted)
@@ -149,7 +153,7 @@ def removeLiquidity(amount: uint256, min_eth: uint256(wei), min_tokens: uint256,
 @constant
 def getInputPrice(input_amount: uint256, input_reserve: uint256, output_reserve: uint256) -> uint256:
     assert input_reserve > 0 and output_reserve > 0
-    input_amount_with_fee: uint256 = input_amount * self.swap_fee
+    input_amount_with_fee: uint256 = input_amount *(10000-self.swap_fee)
     numerator: uint256 = input_amount_with_fee * output_reserve
     denominator: uint256 = (input_reserve * 10000) + input_amount_with_fee
     return numerator / denominator
@@ -164,7 +168,7 @@ def getInputPrice(input_amount: uint256, input_reserve: uint256, output_reserve:
 def getOutputPrice(output_amount: uint256, input_reserve: uint256, output_reserve: uint256) -> uint256:
     assert input_reserve > 0 and output_reserve > 0
     numerator: uint256 = input_reserve * output_amount * 10000
-    denominator: uint256 = (output_reserve - output_amount) * self.swap_fee
+    denominator: uint256 = (output_reserve - output_amount) * (10000-self.swap_fee)
     return numerator / denominator + 1
 
 @private
@@ -543,14 +547,14 @@ def allowance(_owner : address, _spender : address) -> uint256:
 def adjust_swap_fee(_new_swap_fee : uint256) -> bool:
       assert msg.sender == self.owner
       assert _new_swap_fee < self.swap_fee_max
-      self.swap_fee = 10000 - _new_swap_fee
+      self.swap_fee = _new_swap_fee
       return True
 
 @public
 def adjust_platform_fee(_new_platform_fee : uint256) -> bool:
       assert msg.sender == self.owner
       assert _new_platform_fee < self.platform_fee_max
-      self.platform_fee = 100000 - _new_platform_fee
+      self.platform_fee = _new_platform_fee
       return True
 
 @public
