@@ -60,7 +60,7 @@ def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256
 def sqrt(x: uint256) -> uint256:
     z: uint256 = (x + 1) / 2
     y: uint256 = x
-    for i in range(6):
+    for i in range(18):
         y = z
         z = ((x / z) + z) / 2
     return y
