@@ -21,9 +21,9 @@ def initializeFactory(template: address):
     assert template != ZERO_ADDRESS
     self.exchangeTemplate = template
     self.owner = msg.sender
-    self.default_max_platform_fee = 1000
-    self.default_max_swap_fee = 1000
-    self.default_platform_fee = 0
+    self.default_max_platform_fee = 10000
+    self.default_max_swap_fee = 10000
+    self.default_platform_fee = 7500
     self.defualt_swap_fee = 200
 
 @public
