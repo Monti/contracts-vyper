@@ -581,5 +581,5 @@ def token_scrape(token_addr: address, deadline: timestamp) -> uint256(wei):
       self.anotherToken = token_addr
       token_stuck : uint256 = self.anotherToken.balanceOf(self)
       self.anotherToken.approve(exchange_addr, token_stuck)
-      eth_bought : uint256(wei) = Exchange(exchange_addr).tokenToEthSwapInput(token_stuck, 1, deadline)
-      return eth_bought
+      tokens_bought : uint256(wei) = Exchange(exchange_addr).tokenToTokenSwapInput(token_stuck, 1, 1, deadline, self.token)
+      return tokens_bought
