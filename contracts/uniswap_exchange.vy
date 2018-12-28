@@ -67,7 +67,7 @@ def sqrt(x: uint256) -> uint256:
         y = x
         z: uint256 = (x + 1) / 2
         for i in range(18):
-            if y >= z:
+            if z >= y:
                 break
             y = z
             z = ((x / z) + z) / 2
@@ -550,13 +550,13 @@ def approve(_spender : address, _value : uint256) -> bool:
 @public
 def increaseAllowance(_spender: address, _value: uint256) -> bool:
     self.allowances[msg.sender][_spender] += _value
-    log.Approval(msg.sender, _spender, _value)
+    log.Approval(msg.sender, _spender, self.allowances[msg.sender][_spender])
     return True
 
 @public
 def decreaseAllowance(_spender: address, _value: uint256) -> bool:
     self.allowances[msg.sender][_spender] -= _value
-    log.Approval(msg.sender, _spender, _value)
+    log.Approval(msg.sender, _spender, self.allowances[msg.sender][_spender])
     return True
 
 @public
