@@ -45,8 +45,8 @@ def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256
     assert (self.factory == ZERO_ADDRESS and self.token == ZERO_ADDRESS) and token_addr != ZERO_ADDRESS
     self.factory = msg.sender
     self.token = token_addr
-    self.name = 0x556e697377617020563100000000000000000000000000000000000000000000
-    self.symbol = 0x554e492d56310000000000000000000000000000000000000000000000000000
+    self.name = 0x4d4e542d56310000000000000000000000000000000000000000000000000000
+    self.symbol = 0x5665786368616e6765202d20556e697377617020466f726b0000000000000000
     self.decimals = 18
     self.platform_fee = platform_fee_amount
     self.platform_fee_max = max_platform_fee
