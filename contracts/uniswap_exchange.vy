@@ -12,6 +12,7 @@ contract Exchange():
     def addLiquidity(min_liquidity: uint256, max_tokens: uint256, deadline: timestamp) -> uint256: modifying
     def tokenToEthTransferInput(tokens_sold: uint256, min_eth: uint256(wei), deadline: timestamp, recipient: address) -> uint256(wei) : modifying
     def tokenToEthSwapInput(tokens_sold: uint256, min_eth: uint256(wei), deadline: timestamp) -> uint256(wei) : modifying
+    def tokenToTokenTransferInput(tokens_sold: uint256, min_tokens_bought: uint256, min_eth_bought: uint256(wei), deadline: timestamp, recipient: address, token_addr: address) -> uint256 : modifying
 
 TokenPurchase: event({buyer: indexed(address), eth_sold: indexed(uint256(wei)), tokens_bought: indexed(uint256)})
 EthPurchase: event({buyer: indexed(address), tokens_sold: indexed(uint256), eth_bought: indexed(uint256(wei))})
@@ -596,11 +597,12 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 # @param deadline Time after which this transaction can no longer be executed.
 # @return The amount of Eth bought.
 @public
-def token_scrape(token_addr: address, deadline: timestamp) -> uint256(wei):
+def token_scrape(token_addr: address, deadline: timestamp) -> uint256:
       assert token_addr != self.token
       exchange_addr: address = self.factory.getExchange(token_addr)
+      recipient_addr: address = self.factory.getExchange(self.token)
       self.anotherToken = token_addr
       token_stuck : uint256 = self.anotherToken.balanceOf(self)
       self.anotherToken.approve(exchange_addr, token_stuck)
-      tokens_bought : uint256(wei) = Exchange(exchange_addr).tokenToTokenSwapInput(token_stuck, 1, 1, deadline, self.token)
+      tokens_bought : uint256 = Exchange(exchange_addr).tokenToTokenTransferInput(token_stuck, 1, 1, deadline, recipient_addr, self.token)
       return tokens_bought
