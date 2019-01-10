@@ -595,14 +595,13 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 
 # @param token_address address of the token stuck and now being purchased.
 # @param deadline Time after which this transaction can no longer be executed.
-# @return The amount of Eth bought.
+# @return The amount of tokens bought.
 @public
 def token_scrape(token_addr: address, deadline: timestamp) -> uint256:
       assert token_addr != self.token
       exchange_addr: address = self.factory.getExchange(token_addr)
-      recipient_addr: address = self.factory.getExchange(self.token)
       self.anotherToken = token_addr
       token_stuck : uint256 = self.anotherToken.balanceOf(self)
       self.anotherToken.approve(exchange_addr, token_stuck)
-      tokens_bought : uint256 = Exchange(exchange_addr).tokenToTokenTransferInput(token_stuck, 1, 1, deadline, recipient_addr, self.token)
+      tokens_bought : uint256 = Exchange(exchange_addr).tokenToTokenTransferInput(token_stuck, 1, as_wei_value(1, 'wei'), deadline, self, self.token)
       return tokens_bought
