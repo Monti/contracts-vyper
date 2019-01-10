@@ -217,7 +217,7 @@ def ethToTokenSwapInput(min_tokens: uint256, deadline: timestamp) -> uint256:
 @public
 @payable
 def ethToTokenTransferInput(min_tokens: uint256, deadline: timestamp, recipient: address) -> uint256:
-    assert recipient != self and recipient != ZERO_ADDRESS
+    assert recipient != ZERO_ADDRESS
     return self.ethToTokenInput(msg.value, min_tokens, deadline, msg.sender, recipient)
 
 @private
