@@ -86,7 +86,7 @@ def sqrt(x: uint256) -> uint256:
 def calculate_platform_profit(eth_reserve: uint256, token_reserve: uint256) -> uint256:
     total_liquidity: uint256 = self.totalSupply
     platform_profit: uint256 = self.sqrt(1000000*eth_reserve*token_reserve/self.previous_invariant - 1000000)
-    platform_liquidity_minted: uint256 = (total_liquidity * platform_profit * self.platform_fee/(10000+platform_profit*(10000 - self.platform_fee)))/1000
+    platform_liquidity_minted: uint256 = total_liquidity * platform_profit * self.platform_fee / (10000000 + platform_profit * (10000 - self.platform_fee))
     return platform_liquidity_minted
 
 @public
