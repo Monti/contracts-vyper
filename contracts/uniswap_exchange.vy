@@ -1,5 +1,6 @@
-# @title Uniswap Exchange Interface V1
-# @notice Source code found at https://github.com/uniswap
+# @title Monti Decentralized Exchange
+# @notice Source code found at https://github.com/OliverNChalk/contracts-vyper
+# @notice This project is a fork of the Uniswap codebase found at https://github.com/Uniswap/contracts-vyper
 # @notice Use at your own risk
 
 contract Factory():
@@ -21,8 +22,8 @@ RemoveLiquidity: event({provider: indexed(address), eth_amount: indexed(uint256(
 Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
 Approval: event({_owner: indexed(address), _spender: indexed(address), _value: uint256})
 
-name: public(bytes32)                             # Uniswap V1
-symbol: public(bytes32)                           # UNI-V1
+name: public(bytes32)                             # Vexchange V1 - Uniswap Fork
+symbol: public(bytes32)                           # MNT-V1
 decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of UNI in existence
 balances: uint256[address]                        # UNI balance of an address
@@ -46,8 +47,8 @@ def setup(token_addr: address, owner_addr: address, platform_fee_amount: uint256
     assert (self.factory == ZERO_ADDRESS and self.token == ZERO_ADDRESS) and token_addr != ZERO_ADDRESS
     self.factory = msg.sender
     self.token = token_addr
-    self.name = 0x4d4e542d56310000000000000000000000000000000000000000000000000000
-    self.symbol = 0x5665786368616e6765202d20556e697377617020466f726b0000000000000000
+    self.name = 0x5665786368616e6765205631202d20556e697377617020466f726b0000000000
+    self.symbol = 0x4d4e542d56310000000000000000000000000000000000000000000000000000
     self.decimals = 18
     self.platform_fee = platform_fee_amount
     self.platform_fee_max = max_platform_fee
@@ -595,13 +596,15 @@ def adjust_platform_fee_max(_new_platform_fee_max : uint256) -> bool:
 
 # @param token_address address of the token stuck and now being purchased.
 # @param deadline Time after which this transaction can no longer be executed.
+# @param min_tokens_bought Minimum amount of native tokens received
+# @param min_eth_bought Minimum amount of intemediary eth received
 # @return The amount of tokens bought.
 @public
-def token_scrape(token_addr: address, deadline: timestamp) -> uint256:
+def token_scrape(token_addr: address, min_tokens_bought: uint256, min_eth_bought: uint256, deadline: timestamp) -> uint256:
       assert token_addr != self.token
       exchange_addr: address = self.factory.getExchange(token_addr)
       self.anotherToken = token_addr
       token_stuck : uint256 = self.anotherToken.balanceOf(self)
       self.anotherToken.approve(exchange_addr, token_stuck)
-      tokens_bought : uint256 = Exchange(exchange_addr).tokenToTokenTransferInput(token_stuck, 1, as_wei_value(1, 'wei'), deadline, self, self.token)
+      tokens_bought : uint256 = Exchange(exchange_addr).tokenToTokenTransferInput(token_stuck, min_tokens_bought, as_wei_value(min_eth_bought, 'wei'), deadline, self, self.token)
       return tokens_bought
