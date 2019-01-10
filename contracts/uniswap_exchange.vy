@@ -608,14 +608,11 @@ def factoryAddress() -> address(Factory):
 
     return self.factory
 
+# ERC20 compatibility for exchange liquidity modified from
+# https://github.com/ethereum/vyper/blob/master/examples/tokens/ERC20.vy
 @public
 @constant
 def balanceOf(_owner : address) -> uint256:
-    """
-    ERC20 compatibility for exchange liquidity modified from
-    https://github.com/ethereum/vyper/blob/master/examples/tokens/ERC20.vy
-    """
-
     return self.balances[_owner]
 
 @public
